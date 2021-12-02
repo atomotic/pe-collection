@@ -1,0 +1,33 @@
+version: "3"
+
+tasks:
+  list-identifiers:
+    desc: list identifiers
+    cmds:
+      - curl -s https://echaurren.biblhertz.it/PE.html | pup .shelf text{} | grep PE- > identifiers.txt
+    silent: true
+  download-manifests:
+    desc: download iiif manifests
+    cmds:
+      - 'parallel -j8 --bar "curl -s -o manifests/{}.json https://dlib.biblhertz.it/ia/iiif/{}.json" :::: identifiers.txt'
+    silent: true
+  flatten-metadata:
+    desc: extract iiif metadata and flatten
+    cmds:
+      - "parallel --bar iiif-flat-metadata {} ::: manifests/*.json >> collection.jsonl"
+    silent: true
+  collection-to-json:
+    desc: convert jsonl to json
+    cmds:
+      - "jq --slurp . <collection.jsonl >collection.json"
+    silent: true
+  csv-header:
+    desc: csv header
+    cmds:
+      - "echo Title,Description,Manifest,Year,Place > collection.csv"
+    silent: true
+  csv:
+    desc: generate csv
+    cmds:
+      - 'jq -r ".[]|[.Title,.Description,.[\"@id\"],.Year,.Place]|@csv" collection.json >> collection.csv'
+    silent: true
